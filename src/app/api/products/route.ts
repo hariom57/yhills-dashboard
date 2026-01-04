@@ -3,11 +3,10 @@ import { connectToDatabase } from '@/lib/mongodb';
 import Product from '@/models/Product';
 import { productSchema } from '@/validations/productSchema';
 
-// --- GET: Fetch all products (Used by Dashboard & Products Page) ---
+// --- GET: Fetch all products ---
 export async function GET() {
   try {
     await connectToDatabase();
-    // Fetch all products, sorted by newest first
     const products = await Product.find({}).sort({ createdAt: -1 });
     return NextResponse.json(products);
   } catch (error) {
@@ -15,7 +14,7 @@ export async function GET() {
   }
 }
 
-// --- POST: Create a new product (Used by ProductForm) ---
+// --- POST: Create a new product ---
 export async function POST(req: Request) {
   try {
     await connectToDatabase();
@@ -23,8 +22,15 @@ export async function POST(req: Request) {
     
     // Validate with Zod
     const validation = productSchema.safeParse(body);
+    
     if (!validation.success) {
-      return NextResponse.json({ error: validation.error.errors }, { status: 400 });
+      // FIX: Explicitly handle the error to satisfy strict TypeScript
+      const errorMessages = validation.error.issues.map(issue => ({
+        path: issue.path,
+        message: issue.message
+      }));
+      
+      return NextResponse.json({ error: errorMessages }, { status: 400 });
     }
 
     const product = await Product.create(validation.data);
